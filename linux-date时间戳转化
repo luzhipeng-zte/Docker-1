@@ -1,0 +1,1 @@
+date -d "1970-01-01 UTC `echo "$(date +%s)-$(cat /proc/uptime|cut -f 1 -d' ')+1204560.334313" | bc ` seconds"
