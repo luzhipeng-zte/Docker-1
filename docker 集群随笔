@@ -143,11 +143,25 @@ scheduleTask ./manager/scheduler/scheduler.go:               State:     api.Task
 
 4、
 
-./agent/exec/controller.go:                     status.State = api.TaskStateAccepted
+4、
+agent端 负责的几个state。
+
+./agent/exec/controller.go:             return transition(api.TaskStateReady, "prepared")
+./agent/exec/controller.go:             status.State = api.TaskStateAccepted
 ./agent/exec/controller.go:             return transition(api.TaskStatePreparing, "preparing")
 ./agent/exec/controller.go:             return transition(api.TaskStateStarting, "starting")
 ./agent/exec/controller.go:             return transition(api.TaskStateRunning, "started")
 ./agent/exec/controller.go:             return transition(api.TaskStateCompleted, "finished")
+   transition := func(state api.TaskState, msg string) (*api.TaskStatus, error) {
+                current := status.State
+                status.State = state
+                status.Message = msg
+
+                if current > state {
+                        panic("invalid state transition")
+                }
+                return status, nil
+        }
 
 
 
