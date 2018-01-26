@@ -142,8 +142,6 @@ taskFitNode ./manager/scheduler/scheduler.go:               State:     api.TaskS
 scheduleTask ./manager/scheduler/scheduler.go:               State:     api.TaskStateAssigned,
 
 4、
-
-4、
 agent端 负责的几个state。
 
 ./agent/exec/controller.go:             return transition(api.TaskStateReady, "prepared")
@@ -151,7 +149,33 @@ agent端 负责的几个state。
 ./agent/exec/controller.go:             return transition(api.TaskStatePreparing, "preparing")
 ./agent/exec/controller.go:             return transition(api.TaskStateStarting, "starting")
 ./agent/exec/controller.go:             return transition(api.TaskStateRunning, "started")
+
+ TaskStateCompleted 这个非常特殊，容器退出，没有错误，才会设置。目前不清楚什么情况会发生。
 ./agent/exec/controller.go:             return transition(api.TaskStateCompleted, "finished")
+
+当task.DesiredState == api.TaskStateShutdown 的时候， task 状态会变成 TaskStateShutdown
+./agent/exec/controller.go:             return transition(api.TaskStateShutdown, "shutdown")
+
+当时容器异常退出或者被kill ,status state会被设置为TaskStateFailed。
+global.go 全局服务 leader收到状态变化后，
+        if isTaskTerminated(v.Task) {
+            g.restartTask(ctx, v.Task.ID, v.Task.ServiceID)
+        }
+
+case api.TaskStateRunning:
+                if err := ctlr.Wait(ctx); err != nil {
+                        return fatal(err)
+                }
+                return transition(api.TaskStateCompleted, "finished")
+		fatal:=  
+			switch {
+                case status.State < api.TaskStateStarting:
+                        status.State = api.TaskStateRejected
+                case status.State >= api.TaskStateStarting:
+                        status.State = api.TaskStateFailed
+                }
+				
+
    transition := func(state api.TaskState, msg string) (*api.TaskStatus, error) {
                 current := status.State
                 status.State = state
@@ -162,8 +186,6 @@ agent端 负责的几个state。
                 }
                 return status, nil
         }
-
-
 
 scheduler  
 
