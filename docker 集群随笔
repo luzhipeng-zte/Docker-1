@@ -5,14 +5,14 @@
 global.go 
 （1）state.EventUpdateTask  如果t.Status.State > api.TaskStateRunning 触发 restart task。
 （2）removeTask 函数---》removeTasks---》reconcileServices--->state.EventUpdateService
-															--->state.EventCreateService
+							--->state.EventCreateService
 															
-									--->reconcileServicesOneNode--->state.EventDeleteTask
-																---->reconcileOneNode ----> state.EventUpdateNode(g.reconcileOneNode(ctx, v.Node))
+					--->reconcileServicesOneNode--->state.EventDeleteTask
+								     ---->reconcileOneNode ----> state.EventUpdateNode(g.reconcileOneNode(ctx, v.Node))
 
-					---》removeTasksFromNode---》EventUpdateNode
-											---》EventDeleteNode
-											---》reconcileOneNode(node.Spec.Availability == api.NodeAvailabilityDrain)
+			---》removeTasksFromNode---》EventUpdateNode
+						---》EventDeleteNode
+			                         ---》reconcileOneNode(node.Spec.Availability == api.NodeAvailabilityDrain)
 											
 
 updater.go
