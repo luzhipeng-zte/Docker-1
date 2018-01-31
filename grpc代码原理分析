@@ -1,0 +1,136 @@
+gRPC是高性能的RPC开发框架, 目前有C++，Golang和Java的实现. 本文只对Golang源代码进行分析. 
+Server.go 
+1. Server , ServerOption，ServerOption是Server的配置选项
+2. Service ,一个Server会注册多个Service
+3. Method，一个Service里面会有多个方法
+
+NewServer -> Serve -> Stop 
+Serve就是一个大的for循环，建立Client Connection链接，处理链接. 
+
+先看中间层Service的代码,gRPC里有两种通讯方式，一个是Unary方式，另外一个就是Stream 
+// service consists of the information of the server serving this service and
+// the methods in this service.
+type service struct {
+    server interface{} // the server for service methods // 属于的Server
+    md     map[string]*MethodDesc // Unary 方式
+    sd     map[string]*StreamDesc // Stream 方式
+    mdata  interface{} // 元信息
+}
+Unary方式，定义的MethodDesc就在Server.go 文件里，然而StreamDesc的定义是在stream.go里
+
+再看Server.go 中的Server对象，对于一个服务程序一般提供Listen方法监听和Accept方法处理Connection. Server.go 也不例外. 
+
+// Server is a gRPC server to serve RPC requests.
+type Server struct {
+    opts options // 服务选项，定制适合自己业务的服务
+    mu     sync.Mutex // guards following // 
+    lis    map[net.Listener]bool // 
+    conns  map[io.Closer]bool // 
+    serve  bool  // ---
+    drain  bool   // ---
+    ctx    context.Context
+    cancel context.CancelFunc
+ // A CondVar to let GracefulStop() blocks until all the pending RPCs are finished
+ // and all the transport goes away.
+    cv     *sync.Cond
+    m      map[string]*service // service name -> service info
+    events trace.EventLog  // 
+    quit     chan struct{}  //
+    done     chan struct{} //
+    quitOnce sync.Once //
+    doneOnce sync.Once //
+ }
+func NewServer(opt ...ServerOption) *Server // 初始化Server，服务
+func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) // 给Server注册服务
+func (s *Server) GetServiceInfo() map[string]ServiceInfo // 查看服务有哪些Services 
+func (s *Server) Serve(lis net.Listener) error  // 开始服务
+func (s *Server) Stop()  // 停止服务
+func (s *Server) GracefulStop() // 优雅的停止服务
+
+ServerOption需要好好理解,看注解，设置每个Option都有提供相应的方法. 
+type options struct {
+    creds                 credentials.TransportCredentials // 
+    codec                 Codec
+    cp                    Compressor
+    dc                    Decompressor
+    unaryInt              UnaryServerInterceptor //
+    streamInt             StreamServerInterceptor  //
+    inTapHandle           tap.ServerInHandle
+    statsHandler          stats.Handler  //
+    maxConcurrentStreams  uint32 // 一个连接中最大并发Stream数
+    maxReceiveMessageSize int // 最大接收消息大小
+    maxSendMessageSize    int // 最大发送消息大小
+    useHandlerImpl        bool // use http.Handler-based server, handleRawConn根据useHandlerImpl来决定调用serveUsingHandler还是来调用newHTTP2Transport处理incomming连接
+    unknownStreamDesc     *StreamDesc
+    keepaliveParams       keepalive.ServerParameters
+    keepalivePolicy       keepalive.EnforcementPolicy
+    initialWindowSize     int32 // 初始化Stream的Window大小
+    initialConnWindowSize int32 // 一个Connection的Window大小，一个Connection会有多个Stream，可以参看http2的spec了解
+    writeBufferSize       int   // 写buffer大小
+    readBufferSize        int  // 读buffer大小
+    connectionTimeout     time.Duration // 在handleRawConn方法中设置connectionTimeout，表示服务每一个连接的超时时间，每个Server都启动单独的goroutine服务每一个connection. 
+}
+options.useHandlerImpl是控制处理RawConn的主要判别flag
+
+Transport.go  
+
+Stream、ClientTransport、ServerTransport、recvBuffer、controlBuffer
+最主要的是Stream类型，ServerTransport和ClientTransport是gRPC服务端和客户端的公用接口定义，他们的基于http2协议的实现分别在http2_server.go和http2_client.go中实现
+// Stream represents an RPC in the transport layer.
+type Stream struct { 
+    id uint32 
+    st ServerTransport //如果是client端的Stream那么值为nil. // ctx is the associated context of the stream.
+    ctx context.Context // ctx is the associated context of the stream.
+    cancel context.CancelFunc // cancel is always nil for client side Stream. 
+    done chan struct{} // done is closed when the final status arrives. 
+    goAway chan struct{} // goAway is closed when the server sent GoAways signal before this stream was initiated. 
+    method       string // method records the associated RPC method of the stream.
+    recvCompress string  // 
+    sendCompress string //
+    buf          *recvBuffer //
+    trReader     io.Reader //
+    fc           *inFlow //
+    recvQuota    uint32 //
+    waiters      waiters //
+    updateQuota uint32 
+    requestRead func(int) // Callback to state application's intentions to read data. This is used to adjust flow control, if need be.
+    sendQuotaPool *quotaPool
+    headerChan chan struct{}  // Close headerChan to indicate the end of reception of header metadata.
+    header metadata.MD  // header caches the received header metadata.
+    trailer metadata.MD  // The key-value map of trailer metadata.
+    mu sync.RWMutex // guard the following
+    headerOk bool // headerOK becomes true from the first header is about to send.
+    state    streamState
+    headerDone bool // true iff headerChan is closed. Used to avoid closing headerChan  // multiple times.
+    status *status.Status   // the status error received from the server.
+    rstStream bool // rstStream indicates whether a RST_STREAM frame needs to be sent  // to the server to signify that this stream is closing.
+    rstError http2.ErrCode  // rstError is the error that needs to be sent along with the RST_STREAM frame.
+    bytesSent     bool // bytesSent and bytesReceived indicates whether any bytes have been sent or  // received on this stream.
+    bytesReceived bool
+}
+
+// 服务器端传输层接口，其实现在http2_server.go里 
+type ServerTransport interface {
+    HandleStreams(func(*Stream), func(context.Context, string) context.Context) 
+    WriteHeader(s *Stream, md metadata.MD) error 
+    Write(s *Stream, hdr []byte, data []byte, opts *Options) error 
+    WriteStatus(s *Stream, st *status.Status) error 
+    Close() error 
+    RemoteAddr() net.Addr 
+    Drain()
+}
+// 客户端传输层接口，其实现在http2_client.go里
+type ClientTransport interface {
+    Close() error 
+    GracefulClose() error 
+    Write(s *Stream, hdr []byte, data []byte, opts *Options) error 
+    NewStream(ctx context.Context, callHdr *CallHdr) (*Stream, error) 
+    CloseStream(stream *Stream, err error) 
+    Error() <-chan struct{} 
+    GoAway() <-chan struct{} 
+    GetGoAwayReason() GoAwayReason
+}
+
+http2_server.go   
+
+http2_server.go实现了transport.go中的ServerTransport接口. ServerTransport的接口见上面
