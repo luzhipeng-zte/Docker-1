@@ -187,6 +187,28 @@ case api.TaskStateRunning:
                 return status, nil
         }
 
+	&Task{ID:361undifpwfhou0nbifqd1pfv,Meta:Meta{Version:Version{Index:2472,},
+		CreatedAt:&docker_swarmkit_v1.Timestamp{Seconds:1515550683,Nanos:259408447,},
+		UpdatedAt:&docker_swarmkit_v1.Timestamp{Seconds:1515550687,Nanos:759699923,},},
+		Spec:TaskSpec{Runtime:&TaskSpec_Container{Container:&ContainerSpec{Image:10.62.107.171:62648/admin/cf-vnpm:v1.17.30.03.p06.1300069,Labels:map[string]string{},
+		Command:[],Args:[],Env:[],Dir:,User:,Mounts:[{BIND /root/cf-base/usr /usr false nil nil nil} 
+		{BIND /root/cf-base/lib /lib false nil nil nil} {BIND /root/info/etcs/cloudframe /etc/cloudframe false nil nil nil}
+		{BIND /root/info/logs/cf-vnpm /var/log/cf-vnpm false nil nil nil} {BIND /root/info/etcs/cloudframe/supervisord-vnpm.conf /etc/supervisord.conf false nil nil nil} {BIND /root/zartcli /home/soft_repo_client/bin false nil nil nil} {BIND /root/cfy-volumes/pluginfile /home/vnpmfile//pluginfile false nil nil nil} {BIND /etc/localtime /etc/localtime:ro false nil nil nil}],StopGracePeriod:nil,PullOptions:nil,},},Resources:&ResourceRequirements{Limits:&Resources{NanoCPUs:0,MemoryBytes:0,},Reservations:&Resources{NanoCPUs:0,MemoryBytes:0,},},Restart:&RestartPolicy{Condition:ANY,Delay:nil,MaxAtt
+empts:0,Window:nil,},Placement:&Placement{Constraints:[],},LogDriver:nil,},
+ServiceID:93ecdtbq4wpeejxz0hdkfxn2w,Slot:0,NodeID:ewnpbrxk8bsiugczrrxqnmbcv,Annotations:Annotations
+{Name:,Labels:map[string]string{},},ServiceAnnotations:Annotations{Name:cf-vnpm-service,Labels:map[string]string{},},
+Status:TaskStatus{Timestamp:&docker_swarmkit_v1.Timestamp{Seconds:1515550687,Nanos:393929692,},State:RUNNING,Message:started,Err:,
+RuntimeStatus:&TaskStatus_Container{Container:&ContainerStatus{ContainerID:6adb24599c53be44c867a0d4100eef1306b3e4103885bd38d418b3efc8600c1c,PID:10762,ExitCode:0,},},
+PortStatus:&PortStatus{Ports:[],},},
+DesiredState:RUNNING,Networks:[],Endpoint:&Endpoint{Spec:&EndpointSpec{Mode:VIP,Ports:[],},Ports:[],VirtualIPs:[],},LogDriver:nil,}
+	
+检测是否相同的内容（排除蓝色部分）
+	 case task := <-tm.updateq:
+                        if equality.TasksEqualStable(task, tm.task) {
+                            continue // ignore the update
+                        }
+
+
 scheduler  
 
 老的swarm ，1.12以前策略有三个：
