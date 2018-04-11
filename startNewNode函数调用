@@ -29,6 +29,7 @@ func (c *Cluster) Init(req types.InitRequest)
 4、 n.Ready() ---->initClusterSpec(n, req.Spec),go c.reconnectOnFailure(n) --->return n.NodeID(), nil
 	n.done---->c.clearState() return "", c.err
 ##注意： docker swarm init 调用startNewNode 一定会传入 localAddr，listenAddr, advertiseAddr
+advertiseAddr 地址是grpc 暴露的 外部可访问的地址。
 
 （3）func (c *Cluster) Join(req types.JoinRequest)
 docker swarm join 命令调用该函数
