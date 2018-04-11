@@ -28,7 +28,7 @@ func (c *Cluster) Init(req types.InitRequest)
 3、 n, err := c.startNewNode(req.ForceNewCluster, localAddr, "", net.JoinHostPort(listenHost, listenPort), net.JoinHostPort(advertiseHost, advertisePort), "", "")
 4、 n.Ready() ---->initClusterSpec(n, req.Spec),go c.reconnectOnFailure(n) --->return n.NodeID(), nil
 	n.done---->c.clearState() return "", c.err
-<font size="3">注意： docker swarm init 调用startNewNode 一定会传入 localAddr，listenAddr, advertiseAddr。</font><br />
+##注意： docker swarm init 调用startNewNode 一定会传入 localAddr，listenAddr, advertiseAddr
 
 （3）func (c *Cluster) Join(req types.JoinRequest)
 docker swarm join 命令调用该函数
