@@ -50,3 +50,15 @@ func ParseIP(s string) IP  //ParseIP将s解析为IP地址，并返回该地址�
 IsUnspecified() bool //判断是否是未指定地址
 
 ./api/server/router/swarm/cluster.go 文件是集群相关命令的路由
+
+// GetAdvertiseAddress returns the remotely reachable address of this node.
+func (c *Cluster) GetAdvertiseAddress() string {
+        c.RLock()
+        defer c.RUnlock()
+        if c.advertiseAddr != "" {
+                advertiseHost, _, _ := net.SplitHostPort(c.advertiseAddr)
+                return advertiseHost
+        }
+        return c.actualLocalAddr
+}
+
