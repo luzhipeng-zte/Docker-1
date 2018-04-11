@@ -1,0 +1,49 @@
+manager.go 文件中
+startNewNode 
+(1) cluster.New(cluster.Config{
+                Root:                   cli.Config.Root,
+                Name:                   name,
+                Backend:                d,
+                NetworkSubnetsProvider: d,
+                DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
+        })
+
+     New()---》startNewNode
+	 在dockerd启动的过程中，./cmd/dockerd/daemon.go:276:    c, err := cluster.New
+	创建cluster。
+	New的过程
+	1、创建 swarm的根目录，例如/var/lib/docker/swarm
+	2、调用loadstate函数 负责加载根目录下的docker-state.json文件，不存在则返回错误为NULL，代表此节点不是一个集群节点。如果访问出现其他错误，则返回错误码。
+	正常访问，读取里面的数据。顺便检查certificates/swarm-node.crt 证书是否存在，不存在则删除swarm的根目录。
+	3、 n, err := c.startNewNode(false, st.LocalAddr, st.RemoteAddr, st.ListenAddr, st.AdvertiseAddr, "", "") 创建集群节点
+	4、 select等待，如果n.Ready() 返回，则执行go c.reconnectOnFailure(n)，其他则返回错误。
+	 
+（2）
+docker swarm init 调用 会执行到该函数。
+func (c *Cluster) Init(req types.InitRequest) 
+1、如果该节点已经是集群的一部分，没有配置ForceNewCluster，则退出ErrSwarmExists，否则执行stopNode（）
+继续初始化。
+2、validateAndSanitizeInitRequest 验证请求参数的正确性。
+3、 n, err := c.startNewNode(req.ForceNewCluster, localAddr, "", net.JoinHostPort(listenHost, listenPort), net.JoinHostPort(advertiseHost, advertisePort), "", "")
+4、 n.Ready() ---->initClusterSpec(n, req.Spec),go c.reconnectOnFailure(n) --->return n.NodeID(), nil
+	n.done---->c.clearState() return "", c.err
+
+（3）func (c *Cluster) Join(req types.JoinRequest)
+docker swarm join 命令调用该函数
+1、检查该节点是不是集群节点，是的话，直接退出
+2、检查请求参数正确性
+3、n, err := c.startNewNode(false, "", req.RemoteAddrs[0], net.JoinHostPort(listenHost, listenPort), advertiseAddr, req.RemoteAddrs[0], req.JoinToken)
+此处advertiseAddr可为空，req.RemoteAddrs[0]不可为空。
+
+4、time.After(swarmConnectTimeout) 或者n.Ready() 调用go c.reconnectOnFailure(n)。
+否则返回错误。
+（4）func (c *Cluster) reconnectOnFailure(n *node)
+调用
+n, err = c.startNewNode(false, c.localAddr, c.getRemoteAddress(), c.listenAddr, c.advertiseAddr, c.getRemoteAddress(), "")
+
+
+
+func ParseIP(s string) IP  //ParseIP将s解析为IP地址，并返回该地址。如果s不是合法的IP地址表示，则ParseIP会返回nil。字符串可以是小数点分隔的IPv4格式（如"74.125.19.99"）或IPv6格式（如"2001:4860:0:2001::68"）格式
+IsUnspecified() bool //判断是否是未指定地址
+
+./api/server/router/swarm/cluster.go 文件是集群相关命令的路由
