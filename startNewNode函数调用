@@ -17,7 +17,8 @@ startNewNode
 	正常访问，读取里面的数据。顺便检查certificates/swarm-node.crt 证书是否存在，不存在则删除swarm的根目录。
 	3、 n, err := c.startNewNode(false, st.LocalAddr, st.RemoteAddr, st.ListenAddr, st.AdvertiseAddr, "", "") 创建集群节点
 	4、 select等待，如果n.Ready() 返回，则执行go c.reconnectOnFailure(n)，其他则返回错误。
-	 
+
+
 （2）
 docker swarm init 调用 会执行到该函数。
 func (c *Cluster) Init(req types.InitRequest) 
@@ -27,6 +28,7 @@ func (c *Cluster) Init(req types.InitRequest)
 3、 n, err := c.startNewNode(req.ForceNewCluster, localAddr, "", net.JoinHostPort(listenHost, listenPort), net.JoinHostPort(advertiseHost, advertisePort), "", "")
 4、 n.Ready() ---->initClusterSpec(n, req.Spec),go c.reconnectOnFailure(n) --->return n.NodeID(), nil
 	n.done---->c.clearState() return "", c.err
+<font size="3">注意： docker swarm init 调用startNewNode 一定会传入 localAddr，listenAddr, advertiseAddr。</font><br />
 
 （3）func (c *Cluster) Join(req types.JoinRequest)
 docker swarm join 命令调用该函数
